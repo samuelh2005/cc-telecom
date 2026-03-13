@@ -16,6 +16,10 @@ It is responsible for:
 3. Providing various network services such as SMS, voice calls, and data connectivity. (SMSC, ...)
 4. Handling mobility management for the UEs, including handovers between BTS nodes as the UE moves around. (MME)
 
+[**BSC Procedure Reference**](./cng/BSC.md)
+[**HSS Procedure Reference**](./cng/HSS.md)
+[**MEE Procedure Reference**](./cng/MME.md)
+
 ### Base Transceiver Station (BTS) *In-Game*
 
 Acts as a dumb bridge between the User Equipment (UE) and the CNG. This will be implemented as a computer with modem peripherals running the BTS software.
@@ -25,10 +29,10 @@ It is responsible for:
 2. Connecting to the NG via WebSocket connections.
 3. Relaying data between the UE and the CNG.
 
-[**BTS-CNG Protocol Reference**](./bts/BTS-CNG.md)
-
 ### User Equipment (UE) *In-Game*
 
 Represents the mobile devices used by players to connect to the network. UEs can be pocket computers, turtles, or any other type of mobile device that is capable of connecting to a modem network. UEs communicate with the BTS nodes via modem signals, and are responsible for sending and receiving data to and from the network. Each UE is associated with a specific BTS node, which serves as its point of connection to the network.
 
-[**UE-BTS Protocol Reference**](./ue/UE-BTS.md)
+## Protocols
+
+[**Layer 1: UE-BTS <> BTS-CNG Protocol**](./protocols/layer1.md): Defines the communication protocols between the UE and BTS, and between the BTS and CNG. This includes handling the transmission of data, session tracking, attachment and detachment of UEs, and packet state tracking to ensure reliable data transmission.

@@ -1,2 +1,0 @@
-# UE ↔ BTS Interface
-
