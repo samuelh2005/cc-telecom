@@ -28,6 +28,7 @@ It is responsible for:
 1. Transmitting and receiving modem signals to and from the UE.
 2. Connecting to the NG via WebSocket connections.
 3. Relaying data between the UE and the CNG.
+4. Tracking UE sessions to ensure that data is correctly routed to the appropriate UE as sent to the BTS from the CNG.
 
 ### User Equipment (UE) *In-Game*
 
