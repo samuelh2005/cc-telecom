@@ -11,6 +11,25 @@ All packets are encoded as JSON serialized strings using `textutils.serializeJSO
 
 ## Part 1: Overview
 
+### 1.1: Network Topology
+
+The network consists of three main components:
+- **User Equipment (UE)**: The end-user device, such as a computer or smartphone, that connects to the cellular network.
+- **Base Transceiver Station (BTS)**: The intermediary node that facilitates communication between the UE and the CNG. Each BTS manages a specific coverage area and handles multiple UEs within that area.
+- **Core Network Gateway (CNG)**: The central node that manages the overall network, including authentication, session management, and routing of data between UEs and external networks.
+
+```mermaid
+graph LR
+    UE <--S1--> BTS
+    BTS <--S2--> CNG
+```
+
+There are two network interfaces:
+- **S1 Interface**: Connects the UE to the BTS using the [Modem API](https://tweaked.cc/peripheral/modem.html).
+- **S2 Interface**: Connects the BTS to the CNG using the [WebSocket API](https://tweaked.cc/module/http.html#v:websocket).
+
+### 1.2: Common Packet Structure
+
 All packets sent between the UE, BTS, and CNG will follow a common structure to ensure consistency and ease of parsing. The general structure of a packet is as follows:
 
 ```jsonc
@@ -34,7 +53,7 @@ All packets sent between the UE, BTS, and CNG will follow a common structure to 
 | `401`       | **Unauthorized**: The UE is not authenticated to perform the requested action. |
 | `500`       | **Internal Server Error**: An error occurred while processing the packet. |
 
-## Part 2: UE-BTS
+## Part 2: S1 Interface (UE-BTS)
 
 **Transport Layer**: [Modem API](https://tweaked.cc/peripheral/modem.html)
 
@@ -67,11 +86,41 @@ Packet types:
 
 #### 2.1.3: `Handover` payload structure
 
+```jsonc
+{
+    "targetBtsId": 12, // ID of the BTS that the UE should hand over to
+    "targetChannel": 314, // Modem channel to use for the new BTS
+    "handoverToken": "Base64Token", // Short-lived token for validating the handover at the target BTS
+    "expiresAt": 1234567999 // UNIX timestamp when the handover token expires
+}
+```
+
 #### 2.1.4: `Paging` payload structure
+
+```jsonc
+null
+```
 
 #### 2.1.5: `BTS_Announcement` payload structure
 
+```jsonc
+{
+    "btsId": 12, // ID of the announcing BTS
+    "channel": 314, // Current operating channel for the BTS
+    "load": 0.42 // 0.0 to 1.0 load indicator
+}
+```
+
 #### 2.1.6: `Authentication_Challenge` payload structure
+
+```jsonc
+{
+    "challengeId": "chal-001", // Unique challenge identifier
+    "nonce": "Base64Nonce", // Random nonce for the UE to sign
+    "algo": "HMAC-SHA256", // HMAC algorithm identifier
+    "expiresAt": 1234567999 // UNIX timestamp when the challenge expires
+}
+```
 
 ### 2.2: Towards BTS (from UE)
 
@@ -81,6 +130,7 @@ Packet types:
 - [**`Attachment`**](#223-attachment-payload-structure)
 - [**`Detachment`**](#224-detachment-payload-structure)
 - [**`Measurement_Report`**](#225-measurement_report-payload-structure)
+- [**`Authentication_Response`**](#226-authentication_response-payload-structure)
 
 #### 2.2.1: `Acknowledgement` payload structure
 
@@ -101,11 +151,43 @@ Packet types:
 
 #### 2.2.3: `Attachment` payload structure
 
+```jsonc
+{
+    "ismi": "001010123456789", // UE identity (IMSI or temporary identity)
+}
+```
+
 #### 2.2.4: `Detachment` payload structure
+
+```jsonc
+null
+```
 
 #### 2.2.5: `Measurement_Report` payload structure
 
-## Part 3: BTS-CNG
+```jsonc
+{
+    "servingBtsId": 12, // Current serving BTS
+    "timestamp": 1234567890, // Measurement timestamp
+    "measurements": [
+        {
+            "btsId": 12,
+            "distance": 24 // Estimated distance to BTS in blocks
+        }
+    ]
+}
+```
+
+#### 2.2.6: `Authentication_Response` payload structure
+
+```jsonc
+{
+    "challengeId": "chal-001", // Challenge being responded to
+    "mac": "Base64HMAC" // HMAC of the challenge nonce and UE identity
+}
+```
+
+## Part 3: S2 Interface (BTS-CNG)
 
 **Transport Layer**: [WebSocket API](https://tweaked.cc/module/http.html#v:websocket)
 
@@ -127,7 +209,27 @@ Packet types:
 
 #### 3.1.2: `Handover` payload structure
 
+```jsonc
+{
+    "ueId": 1, // UE identifier to hand over
+    "targetBtsId": 12, // ID of the BTS that the UE should hand over to
+    "targetChannel": 314, // Modem channel to use for the new BTS
+    "handoverToken": "Base64Token", // Short-lived token for validating the handover at the target BTS
+    "expiresAt": 1234567999 // UNIX timestamp when the handover token expires
+}
+```
+
 #### 3.1.3: `Authentication_Challenge` payload structure
+
+```jsonc
+{
+    "ueId": 1, // UE identifier being challenged
+    "challengeId": "chal-001", // Unique challenge identifier
+    "nonce": "Base64Nonce", // Random nonce for the UE to sign
+    "algo": "HMAC-SHA256", // HMAC algorithm identifier
+    "expiresAt": 1234567999 // UNIX timestamp when the challenge expires
+}
+```
 
 ### 3.2: Towards CNG (from BTS)
 
@@ -135,7 +237,6 @@ Packet types:
 - [**`Data_Uplink`**](#321-data_uplink-payload-structure)
 - [**`Session_Update`**](#322-session_update-payload-structure)
 - [**`Measurement_Report`**](#323-measurement_report-payload-structure)
-- [**`Authentication_Challenge_Request`**](#324-authentication_challenge_request-payload-structure)
 
 #### 3.2.1: `Data_Uplink` payload structure
 
@@ -148,6 +249,107 @@ Packet types:
 
 #### 3.2.2: `Session_Update` payload structure
 
+```jsonc
+{
+    "ueId": 1, // UE identifier
+    "btsId": 12, // Serving BTS identifier
+    "state": "Attached", // e.g. "Attached", "Idle", "Detached"
+    "lastSeen": 1234567890 // UNIX timestamp
+}
+```
+
 #### 3.2.3: `Measurement_Report` payload structure
 
-#### 3.2.4: `Authentication_Challenge_Request` payload structure
+```jsonc
+{
+    "ueId": 1, // UE identifier
+    "servingBtsId": 12, // Current serving BTS
+    "timestamp": 1234567890, // Measurement timestamp
+    "measurements": [
+        {
+            "btsId": 12,
+            "distance": 24 // Estimated distance to BTS in blocks
+        }
+    ]
+}
+```
+
+## Part 4: UE Registration Procedure
+
+The registration procedure establishes a UE session with the network. Authentication occurs during registration using the challenge-response exchange, but the security fields remain outside the packet envelope.
+
+```mermaid
+sequenceDiagram
+    participant UE
+    participant BTS
+    participant CNG
+
+    UE->>BTS: Attachment
+    BTS->>CNG: Session_Update (Attach Requested)
+    CNG->>BTS: Authentication_Challenge
+    BTS->>UE: Authentication_Challenge
+    UE->>BTS: Authentication_Response
+    BTS->>CNG: Session_Update (Attached)
+    BTS->>UE: Acknowledgement (200/401)
+```
+
+This flow shows the UE registering with the network, including the required authentication exchange.
+
+Explanation:
+1. The UE sends `Attachment` to begin or resume service with the serving BTS.
+2. The BTS notifies the CNG with `Session_Update (Attach Requested)` so the core can validate the UE.
+3. The CNG issues an `Authentication_Challenge` to the BTS, which the BTS relays to the UE.
+4. The UE replies with `Authentication_Response`, proving possession of the shared secret.
+5. The BTS confirms success to the CNG using `Session_Update (Attached)`.
+6. The BTS sends an `Acknowledgement` to the UE: status `200` on successful authentication, or `401` if authentication fails.
+
+### 4.1: Paging
+
+Paging is used for the BTS to check if the UE is reachable when there is incoming data or calls for the UE while it is in idle mode. The BTS will send a `Paging` message to the UE, and if the UE is reachable and responds, the BTS can then establish a connection to deliver the incoming data or call. Otherwise, if the UE does not respond to the `Paging` message, it would be assumed the UE has detached silently (e.g. due to moving out of coverage or powering off), and the BTS would update the CNG with a `Session_Update (Detached)` to reflect the UE's reachability.
+
+## Part 5: Handover Procedure
+
+```mermaid
+sequenceDiagram
+    participant UE
+    participant BTS_Source as BTS (Source)
+    participant BTS_Target as BTS (Target)
+    participant CNG
+
+    CNG->>BTS_Source: Handover
+    BTS_Source->>UE: Handover
+    UE->>BTS_Target: Attachment
+    BTS_Target->>CNG: Session_Update (Attached)
+    BTS_Source->>CNG: Session_Update (Detached)
+```
+
+This procedure shows a network-initiated handover. The CNG instructs the source BTS, the UE reattaches to the target BTS using the handover token, and session state is updated at the CNG.
+
+Explanation:
+1. The CNG decides a handover is required and sends `Handover` to the source BTS.
+2. The source BTS forwards `Handover` to the UE with the target BTS ID, channel, token, and expiry.
+3. The UE detaches from the source BTS and attaches to the target BTS using `Attachment`.
+4. The target BTS reports `Session_Update (Attached)` to the CNG for the UE’s new serving cell.
+5. The source BTS reports `Session_Update (Detached)` to close out the prior serving state.
+
+## Part 6: Data Relay Procedure
+
+```mermaid
+sequenceDiagram
+    participant UE
+    participant BTS
+    participant CNG
+
+    UE->>BTS: Data_Uplink
+    BTS->>CNG: Data_Uplink
+    CNG->>BTS: Data_Downlink
+    BTS->>UE: Data_Downlink
+```
+
+This procedure describes data relay between UE and CNG through the BTS for both uplink and downlink traffic.
+
+Explanation:
+1. The UE sends `Data_Uplink` to the serving BTS over the modem channel.
+2. The BTS forwards `Data_Uplink` to the CNG over the WebSocket link.
+3. The CNG sends `Data_Downlink` to the BTS when there is data for the UE.
+4. The BTS delivers `Data_Downlink` to the UE over the modem channel.
