@@ -13,7 +13,7 @@ All packets are encoded as JSON serialized strings using `textutils.serializeJSO
 
 All packets sent between the UE, BTS, and CNG will follow a common structure to ensure consistency and ease of parsing. The general structure of a packet is as follows:
 
-```json
+```jsonc
 {
   "type": "PacketType",
   "sourceUE": 1, // ID of the source UE, as reported by os.getComputerID() on the UE side, or null if the packet is from the BTS or CNG
@@ -50,7 +50,7 @@ Packet types:
 
 #### 2.1.1: `Acknowledgement` payload structure
 
-```json
+```jsonc
 {
     "statusCode": 200, // Acknowledgement status code indicating the result of processing the original packet
 }
@@ -58,7 +58,7 @@ Packet types:
 
 #### 2.1.2: `Data_Downlink` payload structure
 
-```json
+```jsonc
 {
     "service": "Internet", // The type of service the data is associated with, e.g. "Internet", "SMS", "Voice_Call", etc. 
     "data": "Base64EncodedData", // The actual data being sent to the UE, encoded as a Base64 string to ensure safe transmission over the modem network
@@ -84,7 +84,7 @@ Packet types:
 
 #### 2.2.1: `Acknowledgement` payload structure
 
-```json
+```jsonc
 {
     "statusCode": 200, // Acknowledgement status code indicating the result of processing the original packet
 }
@@ -92,7 +92,7 @@ Packet types:
 
 #### 2.2.2: `Data_Uplink` payload structure
 
-```json
+```jsonc
 {
     "service": "Internet", // The type of service the data is associated with, e.g. "Internet", "SMS", "Voice_Call", etc. 
     "data": "Base64EncodedData", // The actual data being sent from the UE, encoded as a Base64 string to ensure safe transmission over the modem network
@@ -118,6 +118,13 @@ Packet types:
 
 #### 3.1.1: `Data_Downlink` payload structure
 
+```jsonc
+{
+    "service": "Internet", // The type of service the data is associated with, e.g. "Internet", "SMS", "Voice_Call", etc. 
+    "data": "Base64EncodedData", // The actual data being sent to the BTS for downlink transmission to the UE, encoded as a Base64 string to ensure safe transmission over the WebSocket connection
+}
+```
+
 #### 3.1.2: `Handover` payload structure
 
 #### 3.1.3: `Authentication_Challenge` payload structure
@@ -131,6 +138,13 @@ Packet types:
 - [**`Authentication_Challenge_Request`**](#324-authentication_challenge_request-payload-structure)
 
 #### 3.2.1: `Data_Uplink` payload structure
+
+```jsonc
+{
+    "service": "Internet", // The type of service the data is associated with, e.g. "Internet", "SMS", "Voice_Call", etc. 
+    "data": "Base64EncodedData", // The actual data being sent from the BTS to the CNG for uplink transmission from the UE, encoded as a Base64 string to ensure safe transmission over the WebSocket connection
+}
+```
 
 #### 3.2.2: `Session_Update` payload structure
 
