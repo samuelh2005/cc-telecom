@@ -1,4 +1,4 @@
-# Layer 1: The S1 and S2 Interfaces
+# The S1 and S2 Interfaces (Layer 1)
 
 Responsibilities of this layer:
 - Define the communication protocols between the UE and BTS, and between the BTS and CNG.
@@ -72,6 +72,8 @@ All packets sent between the UE, BTS, and CNG will follow a common structure to 
 
 **Transport Layer**: [Modem API](https://tweaked.cc/peripheral/modem.html)
 
+The S1 interface will make use of 40 modem channels, with channels `45001-45020` reserved for UE-to-BTS communication and channels `46001-46020` reserved for BTS-to-UE communication. This separation allows for full-duplex communication between the UE and BTS without channel contention. Each BTS should be configured to listen on a chosen 5 channels, to prevent conflicts within the respective ranges for uplink and downlink communication with UEs.
+
 ### 2.1: Towards UE (from BTS)
 
 Packet types:
@@ -92,7 +94,7 @@ Packet types:
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| `service` | string | Service type for the data, e.g. `"Internet"`, `"SMS"`, `"Voice_Call"`. |
+| `service` | string | Layer 2 Service Identifier |
 | `data` | string | Payload data encoded as a Base64 string for safe transmission over the modem. |
 
 #### 2.1.3: `Handover` payload structure
@@ -115,7 +117,8 @@ Packet types:
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
 | `btsId` | number | ID of the announcing BTS. |
-| `channel` | number | Current operating modem channel for the BTS. |
+| `txChannels` | array<number> | Array of modem channels the BTS is transmitting on. |
+| `rxChannels` | array<number> | Array of modem channels the BTS is receiving on. |
 | `load` | number | Load indicator from `0.0` to `1.0`. |
 
 #### 2.1.6: `Authentication_Challenge` payload structure
@@ -147,7 +150,7 @@ Packet types:
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| `service` | string | Service type for the data, e.g. `"Internet"`, `"SMS"`, `"Voice_Call"`. |
+| `service` | string | Layer 2 Service Identifier |
 | `data` | string | Payload data encoded as a Base64 string for safe transmission over the modem. |
 
 #### 2.2.3: `Attachment` payload structure
@@ -192,7 +195,7 @@ Packet types:
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| `service` | string | Service type for the data, e.g. `"Internet"`, `"SMS"`, `"Voice_Call"`. |
+| `service` | string | Layer 2 Service Identifier |
 | `data` | string | Payload data encoded as a Base64 string for safe transmission over the WebSocket. |
 
 #### 3.1.2: `Handover` payload structure
@@ -201,7 +204,8 @@ Packet types:
 |---|---:|---|
 | `ueId` | number | UE identifier to hand over. |
 | `targetBtsId` | number | ID of the BTS that the UE should hand over to. |
-| `targetChannel` | number | Modem channel to use for the new BTS. |
+| `targetTxChannels` | array<number> | Array of modem channels the target BTS is transmitting on. |
+| `targetRxChannels` | array<number> | Array of modem channels the target BTS is receiving on. |
 | `handoverToken` | string | Short-lived token (Base64) for validating the handover at the target BTS. |
 | `expiresAt` | number | UNIX timestamp when the handover token expires. |
 
@@ -233,7 +237,7 @@ Packet types:
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| `service` | string | Service type for the data, e.g. `"Internet"`, `"SMS"`, `"Voice_Call"`. |
+| `service` | string | Layer 2 Service Identifier |
 | `data` | string | Payload data encoded as a Base64 string for safe transmission over the WebSocket. |
 
 #### 3.2.2: `Session_Update` payload structure

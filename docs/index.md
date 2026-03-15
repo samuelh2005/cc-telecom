@@ -13,7 +13,7 @@ Serves as the interface between the radio access network and the core network.
 It is responsible for:
 1. Managing and routing traffic between the BTS nodes and the core network. (BSC)
 2. Handling authentication and security for the network. (HSS)
-3. Providing various network services such as SMS, voice calls, and data connectivity. (SMSC, ...)
+3. Routing to application servers for services such as voice calls, messaging, and data services. (SMSC, etc.)
 4. Handling mobility management for the UEs, including handovers between BTS nodes as the UE moves around. (MME)
 
 ### Base Transceiver Station (BTS) *In-Game*
@@ -32,10 +32,13 @@ Represents the mobile devices used by players to connect to the network. UEs can
 
 ## Protocols and Procedures
 
-- [**Layer 1: S1 and S2 Interfaces**](./layer1.md): Defines the communication protocols between the UE and BTS, and between the BTS and CNG.
-  - [**1. Overview**](./layer1.md#part-1-overview):
-  - [**2. S1 Interface**](./layer1.md#part-2-s1-interface-ue-bts):
-  - [**3. S2 Interface**](./layer1.md#part-3-s2-interface-bts-cng):
-  - [**4. UE Registration Procedure**](./layer1.md#part-4-ue-registration-procedure):
-  - [**5. Handover Procedure**](./layer1.md#part-5-handover-procedure):
-  - [**6. Data Relay Procedure**](./layer1.md#part-6-data-relay-procedure):
+- [**The S1 and S2 Interfaces (Layer 1)**](./layer1.md): Defines the communication protocols between the UE and BTS, and between the BTS and CNG.
+  - [*1. Overview*](./layer1.md#part-1-overview)
+  - [*2. S1 Interface*](./layer1.md#part-2-s1-interface-ue-bts)
+  - [*3. S2 Interface*](./layer1.md#part-3-s2-interface-bts-cng)
+  - [*4. UE Registration Procedure*](./layer1.md#part-4-ue-registration-procedure)
+  - [*5. Handover Procedure*](./layer1.md#part-5-handover-procedure)
+  - [*6. Data Relay Procedure*](./layer1.md#part-6-data-relay-procedure)
+
+- **Application Services (Layer 2)**: Defines the protocols for application layer services that run on top of the core network. Each service will have its own protocol for communication between the CNG and the application server that implements the service.
+  - [*SMS Service*](./layer2-services/sms-service.md)
