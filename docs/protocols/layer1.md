@@ -44,7 +44,7 @@ All packets sent between the UE, BTS, and CNG will follow a common structure to 
 
 #### Acknowledgement Status Code
 
-| Status Code | Description |
+| **Status Code** | **Description** |
 |-------------|-------------|
 | `200`       | **Success**: The packet was received and processed successfully. |
 | `400`       | **Bad Request**: The packet was malformed or missing required fields. |
@@ -54,10 +54,19 @@ All packets sent between the UE, BTS, and CNG will follow a common structure to 
 
 #### BTS Measurement Object
 
-| Field name | Type | Description |
+| **Field name** | **Type** | **Description** |
 |---|---:|---|
 | `btsId` | number | BTS identifier. |
 | `distance` | number | Estimated distance to BTS in blocks. |
+
+#### UE Session State
+
+| **Field name** | **Type** | **Description** |
+|---|---:|---|
+| `ueId` | number | UE identifier. |
+| `state` | string | Session state, e.g. `"Attached"`, `"Authenticated"`, `"Idle"`, `"Detached"`. |
+| `lastSeen` | number | UNIX timestamp of the last-seen time for the UE. |
+| `btsId` | number | Serving BTS identifier. |
 
 ## Part 2: S1 Interface (UE-BTS)
 
@@ -99,7 +108,7 @@ Packet types:
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| (none) | null | This payload is `null` — there are no fields for `Paging`. |
+| (none) | null | This payload is `null` - there are no fields for `Paging`. |
 
 #### 2.1.5: `BTS_Announcement` payload structure
 
@@ -146,19 +155,18 @@ Packet types:
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
 | `ismi` | string | UE identity (IMSI or temporary identity). |
+| `handoverToken` | string\|null | Optional handover token (Base64) if attaching as part of a handover procedure. |
 
 #### 2.2.4: `Detachment` payload structure
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| (none) | null | This payload is `null` — there are no fields for `Detachment`. |
+| (none) | null | This payload is `null` - there are no fields for `Detachment`. |
 
 #### 2.2.5: `Measurement_Report` payload structure
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| `servingBtsId` | number | Current serving BTS identifier. |
-| `timestamp` | number | Measurement UNIX timestamp. |
 | `measurements` | array<[BTS Measurement Object](#bts-measurement-object)> | Array of measurement objects |
 
 #### 2.2.6: `Authentication_Response` payload structure
@@ -178,6 +186,7 @@ Packet types:
 - [**`Data_Downlink`**](#311-data_downlink-payload-structure)
 - [**`Handover`**](#312-handover-payload-structure)
 - [**`Authentication_Challenge`**](#313-authentication_challenge-payload-structure)
+- [**`Session_Query_Response`**](#314-session_query_response-payload-structure)
 
 #### 3.1.1: `Data_Downlink` payload structure
 
@@ -206,12 +215,19 @@ Packet types:
 | `algo` | string | Algorithm identifier, e.g. `HMAC-SHA256`. |
 | `expiresAt` | number | UNIX timestamp when the challenge expires. |
 
+#### 3.1.4: `Session_Query_Response` payload structure
+
+| **Field name** | **Type** | **Description** |
+|---|---:|---|
+| ... | ...[UE Session State](#ue-session-state) | The session state object for the queried UE. |
+
 ### 3.2: Towards CNG (from BTS)
 
 Packet types:
 - [**`Data_Uplink`**](#321-data_uplink-payload-structure)
 - [**`Session_Update`**](#322-session_update-payload-structure)
-- [**`Measurement_Report`**](#323-measurement_report-payload-structure)
+- [**`Session_Query`**](#323-session_query-payload-structure)
+- [**`Measurement_Report`**](#324-measurement_report-payload-structure)
 
 #### 3.2.1: `Data_Uplink` payload structure
 
@@ -222,20 +238,23 @@ Packet types:
 
 #### 3.2.2: `Session_Update` payload structure
 
-| **Field name** | **Type** | **Description**
-|---|---:|---
-| `ueId` | number | UE identifier.
-| `btsId` | number | Serving BTS identifier.
-| `state` | string | Session state, e.g. `"Attached"`, `"Authenticated"`, `"Idle"`, `"Detached"`.
-| `lastSeen` | number | UNIX timestamp of the last-seen time for the UE.
+| **Field name** | **Type** | **Description** |
+|---|---:|---|
+| `ueId` | number | UE identifier. |
+| `state` | string | Session state, e.g. `"Attached"`, `"Authenticated"`, `"Idle"`, `"Detached"`. |
+| `lastSeen` | number | UNIX timestamp of the last-seen time for the UE. |
 
-#### 3.2.3: `Measurement_Report` payload structure
+#### 3.2.3: `Session_Query` payload structure
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
 | `ueId` | number | UE identifier. |
-| `servingBtsId` | number | Current serving BTS. |
-| `timestamp` | number | Measurement UNIX timestamp. |
+
+#### 3.2.4: `Measurement_Report` payload structure
+
+| **Field name** | **Type** | **Description** |
+|---|---:|---|
+| `ueId` | number | UE identifier. |
 | `measurements` | array<[BTS Measurement Object](#bts-measurement-object)> | Array of measurement objects |
 
 ## Part 4: UE Registration Procedure
@@ -284,9 +303,11 @@ sequenceDiagram
 
     CNG->>BTS_Source: Handover
     BTS_Source->>UE: Handover
-    UE->>BTS_Target: Attachment
-    BTS_Target->>CNG: Session_Update (Attached)
     BTS_Source->>CNG: Session_Update (Detached)
+    UE->>BTS_Target: Attachment
+
+    BTS_Target->>UE: Acknowledgement (200/401)
+    BTS_Target->>CNG: Session_Update (Attached)
 ```
 
 This procedure shows a network-initiated handover. The CNG instructs the source BTS, the UE reattaches to the target BTS using the handover token, and session state is updated at the CNG.
@@ -294,9 +315,10 @@ This procedure shows a network-initiated handover. The CNG instructs the source 
 Explanation:
 1. The CNG decides a handover is required and sends `Handover` to the source BTS.
 2. The source BTS forwards `Handover` to the UE with the target BTS ID, channel, token, and expiry.
-3. The UE detaches from the source BTS and attaches to the target BTS using `Attachment`.
-4. The target BTS reports `Session_Update (Attached)` to the CNG for the UE’s new serving cell.
-5. The source BTS reports `Session_Update (Detached)` to close out the prior serving state.
+3. The source BTS updates the CNG with `Session_Update (Detached)` to indicate the UE is detaching from the source BTS.
+4. The UE initiates `Attachment` to the target BTS, including the handover token for validation.
+5. The target BTS responds to the UE with `Acknowledgement (200)` if the handover is successful, or `Acknowledgement (401)` if the token is invalid or expired.
+6. The target BTS updates the CNG with `Session_Update (Attached)` to indicate the UE is now attached to the target BTS.
 
 ## Part 6: Data Relay Procedure
 
