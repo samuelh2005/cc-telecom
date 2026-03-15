@@ -40,14 +40,24 @@ All packets sent between the UE, BTS, and CNG will follow a common structure to 
 | `timestamp` | number | UNIX timestamp when the packet was created; used for latency and timeout tracking.
 | `payload` | object | Packet-specific data object; structure depends on `type`.
 
-### 1.1: Acknowledgement Status Code
+### 1.1: Common Data Types
+
+#### Acknowledgement Status Code
 
 | Status Code | Description |
 |-------------|-------------|
 | `200`       | **Success**: The packet was received and processed successfully. |
 | `400`       | **Bad Request**: The packet was malformed or missing required fields. |
 | `401`       | **Unauthorized**: The UE is not authenticated to perform the requested action. |
+| `404`       | **Invalid Service**: The specified data service is not recognized or supported. |
 | `500`       | **Internal Server Error**: An error occurred while processing the packet. |
+
+#### BTS Measurement Object
+
+| Field name | Type | Description |
+|---|---:|---|
+| `btsId` | number | BTS identifier. |
+| `distance` | number | Estimated distance to BTS in blocks. |
 
 ## Part 2: S1 Interface (UE-BTS)
 
@@ -67,7 +77,7 @@ Packet types:
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| `statusCode` | [Acknowledgement Status Code](#11-acknowledgement-status-code) | Acknowledgement status code indicating the result of processing the original packet |
+| `statusCode` | [Acknowledgement Status Code](#acknowledgement-status-code) | Acknowledgement status code indicating the result of processing the original packet |
 
 #### 2.1.2: `Data_Downlink` payload structure
 
@@ -122,7 +132,7 @@ Packet types:
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| `statusCode` | [Acknowledgement Status Code](#11-acknowledgement-status-code)  | Acknowledgement status code indicating the result of processing the original packet. |
+| `statusCode` | [Acknowledgement Status Code](#acknowledgement-status-code)  | Acknowledgement status code indicating the result of processing the original packet. |
 
 #### 2.2.2: `Data_Uplink` payload structure
 
@@ -149,12 +159,7 @@ Packet types:
 |---|---:|---|
 | `servingBtsId` | number | Current serving BTS identifier. |
 | `timestamp` | number | Measurement UNIX timestamp. |
-| `measurements` | array<object> | Array of measurement objects; see sub-table below. |
-
-| Field name | Type | Description |
-|---|---:|---|
-| `btsId` | number | BTS identifier. |
-| `distance` | number | Estimated distance to BTS in blocks. |
+| `measurements` | array<[BTS Measurement Object](#bts-measurement-object)> | Array of measurement objects |
 
 #### 2.2.6: `Authentication_Response` payload structure
 
@@ -221,7 +226,7 @@ Packet types:
 |---|---:|---
 | `ueId` | number | UE identifier.
 | `btsId` | number | Serving BTS identifier.
-| `state` | string | Session state, e.g. `"Attached"`, `"Idle"`, `"Detached"`.
+| `state` | string | Session state, e.g. `"Attached"`, `"Authenticated"`, `"Idle"`, `"Detached"`.
 | `lastSeen` | number | UNIX timestamp of the last-seen time for the UE.
 
 #### 3.2.3: `Measurement_Report` payload structure
@@ -231,12 +236,7 @@ Packet types:
 | `ueId` | number | UE identifier. |
 | `servingBtsId` | number | Current serving BTS. |
 | `timestamp` | number | Measurement UNIX timestamp. |
-| `measurements` | array<object> | Array of measurement objects; see sub-table below. |
-
-| Field name | Type | Description |
-|---|---:|---|
-| `btsId` | number | BTS identifier. |
-| `distance` | number | Estimated distance to BTS in blocks. |
+| `measurements` | array<[BTS Measurement Object](#bts-measurement-object)> | Array of measurement objects |
 
 ## Part 4: UE Registration Procedure
 
@@ -249,11 +249,12 @@ sequenceDiagram
     participant CNG
 
     UE->>BTS: Attachment
-    BTS->>CNG: Session_Update (Attach Requested)
+    BTS->>CNG: Session_Update (Attached)
+    BTS->>UE: Acknowledgement (401)
     CNG->>BTS: Authentication_Challenge
     BTS->>UE: Authentication_Challenge
     UE->>BTS: Authentication_Response
-    BTS->>CNG: Session_Update (Attached)
+    BTS->>CNG: Session_Update (Authenticated/Deattached)
     BTS->>UE: Acknowledgement (200/401)
 ```
 
@@ -261,11 +262,12 @@ This flow shows the UE registering with the network, including the required auth
 
 Explanation:
 1. The UE sends `Attachment` to begin or resume service with the serving BTS.
-2. The BTS notifies the CNG with `Session_Update (Attach Requested)` so the core can validate the UE.
-3. The CNG issues an `Authentication_Challenge` to the BTS, which the BTS relays to the UE.
-4. The UE replies with `Authentication_Response`, proving possession of the shared secret.
-5. The BTS confirms success to the CNG using `Session_Update (Attached)`.
-6. The BTS sends an `Acknowledgement` to the UE: status `200` on successful authentication, or `401` if authentication fails.
+2. The BTS notifies the CNG with `Session_Update (Attached)` so the core can validate the UE.
+3. The BTS responds to the UE with `Acknowledgement (401)` to indicate that authentication is required.
+4. The CNG issues an `Authentication_Challenge` to the BTS, which the BTS relays to the UE.
+5. The UE replies with `Authentication_Response`, proving possession of the shared secret.
+6. The BTS confirms success to the CNG using `Session_Update (Authenticated)`, or failure with `Session_Update (Detached)` if authentication fails.
+7. The BTS sends an `Acknowledgement` to the UE: status `200` on successful authentication, or `401` if authentication fails.
 
 ### 4.1: Paging
 
