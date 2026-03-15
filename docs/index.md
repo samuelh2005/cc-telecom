@@ -16,10 +16,6 @@ It is responsible for:
 3. Providing various network services such as SMS, voice calls, and data connectivity. (SMSC, ...)
 4. Handling mobility management for the UEs, including handovers between BTS nodes as the UE moves around. (MME)
 
-[**BSC Procedure Reference**](./cng/BSC.md)
-[**HSS Procedure Reference**](./cng/HSS.md)
-[**MEE Procedure Reference**](./cng/MME.md)
-
 ### Base Transceiver Station (BTS) *In-Game*
 
 Acts as a dumb bridge between the User Equipment (UE) and the CNG. This will be implemented as a computer with modem peripherals running the BTS software.
@@ -34,6 +30,12 @@ It is responsible for:
 
 Represents the mobile devices used by players to connect to the network. UEs can be pocket computers, turtles, or any other type of mobile device that is capable of connecting to a modem network. UEs communicate with the BTS nodes via modem signals, and are responsible for sending and receiving data to and from the network. Each UE is associated with a specific BTS node, which serves as its point of connection to the network.
 
-## Protocols
+## Protocols and Procedures
 
-[**Layer 1: UE-BTS <> BTS-CNG Protocol**](./protocols/layer1.md): Defines the communication protocols between the UE and BTS, and between the BTS and CNG. This includes handling the transmission of data, session tracking, attachment and detachment of UEs, and packet state tracking to ensure reliable data transmission.
+- [**Layer 1: S1 and S2 Interfaces**](./layer1.md): Defines the communication protocols between the UE and BTS, and between the BTS and CNG.
+  - [**1. Overview**](./layer1.md#part-1-overview):
+  - [**2. S1 Interface**](./layer1.md#part-2-s1-interface-ue-bts):
+  - [**3. S2 Interface**](./layer1.md#part-3-s2-interface-bts-cng):
+  - [**4. UE Registration Procedure**](./layer1.md#part-4-ue-registration-procedure):
+  - [**5. Handover Procedure**](./layer1.md#part-5-handover-procedure):
+  - [**6. Data Relay Procedure**](./layer1.md#part-6-data-relay-procedure):

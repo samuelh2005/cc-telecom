@@ -1,4 +1,4 @@
-# Layer 1: UE-BTS <> BTS-CNG Protocol
+# Layer 1: The S1 and S2 Interfaces
 
 Responsibilities of this layer:
 - Define the communication protocols between the UE and BTS, and between the BTS and CNG.
