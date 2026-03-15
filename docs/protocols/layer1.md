@@ -64,7 +64,7 @@ All packets sent between the UE, BTS, and CNG will follow a common structure to 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
 | `ueId` | number | UE identifier. |
-| `state` | string | Session state, e.g. `"Attached"`, `"Authenticated"`, `"Idle"`, `"Detached"`. |
+| `state` | string | Session state, `"Attached"`, `"Authenticated"`, `"Idle"`, `"Detached"`. |
 | `lastSeen` | number | UNIX timestamp of the last-seen time for the UE. |
 | `btsId` | number | Serving BTS identifier. |
 
@@ -141,7 +141,7 @@ Packet types:
 
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
-| `statusCode` | [Acknowledgement Status Code](#acknowledgement-status-code)  | Acknowledgement status code indicating the result of processing the original packet. |
+| `statusCode` | [Acknowledgement Status Code](#acknowledgement-status-code) | Acknowledgement status code indicating the result of processing the incoming packet. |
 
 #### 2.2.2: `Data_Uplink` payload structure
 
@@ -241,7 +241,7 @@ Packet types:
 | **Field name** | **Type** | **Description** |
 |---|---:|---|
 | `ueId` | number | UE identifier. |
-| `state` | string | Session state, e.g. `"Attached"`, `"Authenticated"`, `"Idle"`, `"Detached"`. |
+| `state` | string | Session state, `"Attached"`, `"Authenticated"`, `"Idle"`, `"Detached"`. |
 | `lastSeen` | number | UNIX timestamp of the last-seen time for the UE. |
 
 #### 3.2.3: `Session_Query` payload structure
@@ -273,7 +273,7 @@ sequenceDiagram
     CNG->>BTS: Authentication_Challenge
     BTS->>UE: Authentication_Challenge
     UE->>BTS: Authentication_Response
-    BTS->>CNG: Session_Update (Authenticated/Deattached)
+    BTS->>CNG: Session_Update (Authenticated/Detached)
     BTS->>UE: Acknowledgement (200/401)
 ```
 
@@ -290,7 +290,19 @@ Explanation:
 
 ### 4.1: Paging
 
-Paging is used for the BTS to check if the UE is reachable when there is incoming data or calls for the UE while it is in idle mode. The BTS will send a `Paging` message to the UE, and if the UE is reachable and responds, the BTS can then establish a connection to deliver the incoming data or call. Otherwise, if the UE does not respond to the `Paging` message, it would be assumed the UE has detached silently (e.g. due to moving out of coverage or powering off), and the BTS would update the CNG with a `Session_Update (Detached)` to reflect the UE's reachability.
+Paging is used for the BTS to check if the UE is reachable when there is incoming data or calls for the UE while it is in idle mode.
+
+The BTS will send a `Paging` message to the UE every 3 seconds, and the UE should respond with an `Acknowledgement (200)` if it is reachable and ready to receive data. If the UE responds successfully, the BTS can then update the CNG with a `Session_Update (Idle)` to indicate the UE is now active and can receive data.
+
+Otherwise, if the UE does not respond to the `Paging` message, it would be assumed the UE has detached silently (e.g. due to moving out of coverage or powering off), and the BTS would update:
+1. first confirm if the UE attached elsewhere by sending a `Session_Query` to the CNG 
+2. if not, then update with a `Session_Update (Detached)` to reflect the UE's reachability.
+
+### 4.2: Dangling Registration Handling
+
+In some cases a UE might attach to a new BTS while still being registered at the old BTS (e.g. due to moving into a new coverage area without properly detaching from the old BTS).
+
+To handle this, the CNG will prioritize the most recent attachment based on the `lastSeen` timestamp in the `Session_Update` messages. If a new attachment is detected for a UE that is already attached elsewhere, the CNG will mark the old session as `Detached` and update the new session as `Attached`. The old BTS will be notified of the detachment via a `Session_Query_Response (Detached)` message, prompting it to release resources for that UE.
 
 ## Part 5: Handover Procedure
 
