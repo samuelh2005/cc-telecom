@@ -143,7 +143,11 @@ fn handle_bind(
     };
 
     info!(esme = %esme_system_id, %mode, "bind accepted");
-    session.bind(esme_system_id, mode);
+    let res = session.bind(esme_system_id, mode);
+    if let Err(err) = res {
+        warn!(%err, "bind rejected");
+        return handle_generic_nack(command, CommandStatus::EsmeRinvcmdid);
+    }
 
     // Build the C-octet-string for the server system-id.
     // COctetString<1,16> - null-terminated, 1-15 printable ASCII chars.
@@ -173,7 +177,11 @@ fn handle_bind(
 
 fn handle_unbind(command: &Command, session: &mut SessionState) -> Command {
     info!(state = %session, "unbind received");
-    session.unbind();
+    let res = session.unbind();
+    if let Err(err) = res {
+        warn!(%err, "unbind rejected");
+        return handle_generic_nack(command, CommandStatus::EsmeRinvcmdid);
+    }
     Command::builder()
         .status(CommandStatus::EsmeRok)
         .sequence_number(command.sequence_number())
