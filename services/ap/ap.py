@@ -20,7 +20,7 @@ async def handler(websocket):
                 "nUE": t["nUE"],
                 "nReplyTo": t["nMessageID"],
                 "tMessage": f"Server got: {t['tMessage']}",
-                "sProtocol": t["sProtocol"]
+                "sPacketType": t["sPacketType"]
             }
 
             await websocket.send(json.dumps(reply))

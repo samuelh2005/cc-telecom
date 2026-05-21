@@ -17,8 +17,8 @@ local WS_URL = tArgs[1]
 local RECONNECT_DELAY = 5
 local MESSAGE_TTL = 30
 
-local CHANNEL_WSG_TX = 65123
-local CHANNEL_WSG_RX = 65124
+local CHANNEL_AP_TX = 65123
+local CHANNEL_AP_RX = 65124
 
 -- Find modems.
 local tModems = {}
@@ -46,7 +46,7 @@ end
 
 local function isValidRednetWrapper(tMessage)
     return type(tMessage) == "table"
-        and type(tMessage.sProtocol) == "string"
+        and type(tMessage.sPacketType) == "string"
         and type(tMessage.nMessageID) == "number"
         and type(tMessage.nUE) == "number"
         and tMessage.tMessage ~= nil
@@ -127,8 +127,6 @@ local function handleWebSocketMessage(sMessage, bBinary)
         return
     end
 
-    print("Received message from WebSocket: " .. tostring(sMessage))
-
     if not isValidRednetWrapper(tMessage) then
         return
     end
@@ -137,11 +135,11 @@ local function handleWebSocketMessage(sMessage, bBinary)
         return
     end
 
-    transmitToAllModems(CHANNEL_WSG_RX, tMessage)
+    transmitToAllModems(CHANNEL_AP_RX, tMessage)
 end
 
 local ok, err = pcall(function()
-    openChannel(CHANNEL_WSG_TX)
+    openChannel(CHANNEL_AP_TX)
 
     print("0 packets proxied.")
     print("Connecting to WebSocket...")
@@ -156,7 +154,7 @@ local ok, err = pcall(function()
             local nChannel = p2
             local tMessage = p4
 
-            if nChannel == CHANNEL_WSG_TX and isValidRednetWrapper(tMessage) then
+            if nChannel == CHANNEL_AP_TX and isValidRednetWrapper(tMessage) then
                 if rememberMessage(tMessage.nMessageID) then
                     local sent, sendErr = sendWrapperToWebSocket(tMessage)
                     if not sent then
@@ -245,7 +243,7 @@ if wsHandle then
     pcall(function() wsHandle.close() end)
 end
 
-closeChannel(CHANNEL_WSG_TX)
+closeChannel(CHANNEL_AP_TX)
 
 if not ok then
     printError(err)
