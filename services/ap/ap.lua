@@ -3,9 +3,13 @@ local tArgs = { ... }
 local function printUsage()
     local programName = arg[0] or fs.getName(shell.getRunningProgram())
     print("Usages:")
-    print(programName .. " <ws_url>")
+    print(programName .. " <ws_url> [ap_tx_channel] [ap_rx_channel]")
+    print("Definitions:")
+    print("ws_url: A valid WebSocket URL, e.g., ws://1.2.3.4:80/ws")
+    print("ap_tx_channel: The channel to use for transmitting messages (default: 65123)")
+    print("ap_rx_channel: The channel to use for receiving messages (default: 65124)")
     print("Example:")
-    print(programName .. " ws://1.2.3.4:80/ws")
+    print(programName .. " ws://127.0.0.1:8080/ws 65123 65124")
 end
 
 if #tArgs == 0 then
@@ -15,10 +19,12 @@ end
 
 local WS_URL = tArgs[1]
 local RECONNECT_DELAY = 5
+local ANNOUNCE_INTERVAL = 15
 local MESSAGE_TTL = 30
 
-local CHANNEL_AP_TX = 65123
-local CHANNEL_AP_RX = 65124
+local CHANNEL_AP_TX = tArgs[2] or 65123
+local CHANNEL_AP_RX =  tArgs[3] or 65124
+local CHANNEL_AP_ANNOUNCE = 65125
 
 -- Find modems.
 local tModems = {}
@@ -44,7 +50,7 @@ local function closeChannel(nChannel)
     end
 end
 
-local function isValidRednetWrapper(tMessage)
+local function isValidPayload(tMessage)
     return type(tMessage) == "table"
         and type(tMessage.sPacketType) == "string"
         and type(tMessage.nMessageID) == "number"
@@ -52,9 +58,9 @@ local function isValidRednetWrapper(tMessage)
         and tMessage.tMessage ~= nil
 end
 
-local function transmitToAllModems(nChannel, tMessage)
+local function transmitToAllModems(channel, tMessage)
     for _, sModem in ipairs(tModems) do
-        peripheral.call(sModem, "transmit", nChannel, 0, tMessage)
+        peripheral.call(sModem, "transmit", channel, 0, tMessage)
     end
 end
 
@@ -127,7 +133,7 @@ local function handleWebSocketMessage(sMessage, bBinary)
         return
     end
 
-    if not isValidRednetWrapper(tMessage) then
+    if not isValidPayload(tMessage) then
         return
     end
 
@@ -140,23 +146,25 @@ end
 
 local ok, err = pcall(function()
     openChannel(CHANNEL_AP_TX)
+    openChannel(CHANNEL_AP_ANNOUNCE)
 
     print("0 packets proxied.")
     print("Connecting to WebSocket...")
     connectWebSocket()
 
     local nPacketsForwarded = 0
+    local announceTimer = os.startTimer(ANNOUNCE_INTERVAL)
 
     while true do
         local sEvent, p1, p2, p3, p4 = os.pullEvent()
 
         if sEvent == "modem_message" then
             local nChannel = p2
-            local tMessage = p4
+            local payload = p4
 
-            if nChannel == CHANNEL_AP_TX and isValidRednetWrapper(tMessage) then
-                if rememberMessage(tMessage.nMessageID) then
-                    local sent, sendErr = sendWrapperToWebSocket(tMessage)
+            if nChannel == CHANNEL_AP_TX and isValidPayload(payload) then
+                if rememberMessage(payload.nMessageID) then
+                    local sent, sendErr = sendWrapperToWebSocket(payload)
                     if not sent then
                         printError("WebSocket send failed: " .. tostring(sendErr))
                         wsConnected = false
@@ -231,6 +239,16 @@ local ok, err = pcall(function()
             elseif reconnectTimer and nTimer == reconnectTimer then
                 reconnectTimer = nil
                 connectWebSocket()
+
+            elseif nTimer == announceTimer then
+                local announcePacket = {
+                    sPacketType = "announce",
+                    nApID = os.getComputerID(),
+                    nTXChannel = CHANNEL_AP_TX,
+                    nRXChannel = CHANNEL_AP_RX,
+                }
+                transmitToAllModems(CHANNEL_AP_ANNOUNCE, announcePacket)
+                announceTimer = os.startTimer(ANNOUNCE_INTERVAL)
             end
 
         elseif sEvent == "terminate" then
@@ -244,6 +262,7 @@ if wsHandle then
 end
 
 closeChannel(CHANNEL_AP_TX)
+closeChannel(CHANNEL_AP_ANNOUNCE)
 
 if not ok then
     printError(err)
