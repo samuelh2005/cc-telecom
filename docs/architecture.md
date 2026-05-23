@@ -24,34 +24,33 @@ flowchart LR
     end
 
     subgraph "Core Network (external)"
-        NRF[NRF]
+        APC[APC]
         MSC[MSC]
         STP[STP]
         HSS[HSS]
         SMSC[SMSC]
-        AS[AS...]
 
-        MSC --- |"NRF SBI"| NRF
-        MSC === |"USP/C"| AS
+        MSC --- |"APC SBI"| APC
         HSS --- |"SS7"| STP
         SMSC --- |"SS7"| STP
-        AS --- |"SS7"| STP
         MSC --- |"SS7"| STP
     end
     
     AP === |"USP/B"| MSC
-    AP --> |"NRF SBI"| NRF    
+    AP --> |"APC SBI"| APC    
 ```
 
 ## 3. Network Components
 
-- **UE (User Equipment)**: The in-game device that connects to the cellular network. It can be a computer, pocket computer, or a turtle.
-- **AP (Access Point)**: The in-game component that provides wireless connectivity to the UE. It acts as a bridge between the UE and the core network.
-- **NRF (Network Repository Function)**: Facilitates MSC discovery for AP which allows for dynamic routing of user data traffic.
-- **MSC (Mobile Switching Center)**: Manages message setup, routing, and termination for the cellular network.
-- **HSS (Home Subscriber Server)**: Manages subscriber information and authentication.
-- **SMSC (Short Message Service Center)**: Handles the routing and delivery of SMS messages.
-- **AS (Application Services)**: External services that provide application-layer functionalities.
+| Component | Description | Implementation |
+|-----------|-------------|----------------|
+| **UE (User Equipment)** | The in-game device that connects to the cellular network. It can be a computer, pocket computer, or a turtle. | [../services/ue/](../services/ue/) |
+| **AP (Access Point)** | The in-game component that provides wireless connectivity to the UE. It acts as a bridge between the UE and the core network. | [../services/ap/](../services/ap/) |
+| **APC (Access Point Controller)** | Facilitates remote configuration and management of APs, allowing for dynamic network adjustments and optimisations. | ... |
+| **MSC (Mobile Switching Center)** | Manages message setup, routing, and termination for the cellular network. | ... |
+| **HSS (Home Subscriber Server)** | Manages subscriber information and authentication. | ... |
+| **SMSC (Short Message Service Center)** | Handles the routing and delivery of SMS messages. | ... |
+| **STP (Signalling Transfer Point)** | Routes signalling messages between components of the SS7 network. | [OsmoSTP](https://osmocom.org/projects/osmo-stp/wiki) |
 
 ## 4. Communication Protocols
 
@@ -59,6 +58,5 @@ flowchart LR
 |----------|-------------|-----------------|
 | **USP/A (User Session Protocol / Profile A)** | A custom protocol used to tunnel control and data traffic between the UE and AP. | CC:T's Modem API |
 | **USP/B (User Session Protocol / Profile B)** | A custom protocol used to tunnel user data traffic between the AP and MSC. | JSON over CC:T WebSockets |
-| **USP/C (User Session Protocol / Profile C)** | A custom protocol used to tunnel user data traffic between the MSC and AS. | JSON over HTTP |
-| **NRF SBI (Service-Based Interface)** | A service discovery interface for locating network functions. | JSON over HTTP |
+| **APC SBI (Service-Based Interface)** | Provides remote configuration and management capabilities for APs. | JSON over HTTP |
 | **SS7 (Signalling System No. 7)** | A standard protocol used for signalling and control in telecommunication networks. | Standard SIGTRAN over SCTP/IP |
