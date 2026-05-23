@@ -1,5 +1,5 @@
 regions:
   region1:
-    upf:
-      - name: upf1
+    msc:
+      - name: msc1
         address: ws://1.2.3.4:80

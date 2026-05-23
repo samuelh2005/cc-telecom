@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import yaml
 
-with open("nrf.conf.yaml", "r") as f:
+with open("apc.yaml", "r") as f:
     config = yaml.safe_load(f)
 
 app = FastAPI()
