@@ -30,14 +30,14 @@ flowchart BT
     subgraph "Core Network"
         RS["Radius Server"]
         PBX[PBX]
-        MSC[MSC]
+        MTG[MTG]
         
-        RS --- |"Radius"| MSC
+        RS --- |"Radius"| MTG
         RS --- |"Radius"| PBX
-        PBX --- |"SIP"| MSC
+        PBX --- |"SIP"| MTG
     end
     
-    AP === |"USP/B"| MSC
+    AP === |"USP/B"| MTG
     UE === |"USP/A"| AP
 ```
 
@@ -48,7 +48,7 @@ flowchart BT
 | **UE (User Equipment)** | In-Game | The in-game device that connects to the cellular network. It can be a computer, pocket computer, or a turtle. | Custom [../services/ue/](../services/ue/) |
 | **AP (Access Point)** | In-Game | The in-game component that provides wireless connectivity to the UE. It acts as a bridge between the UE and the core network. | Custom [../services/ap/](../services/ap/) |
 | **APC (Access Point Controller)** | External | Facilitates remote configuration and management of APs, allowing for dynamic network adjustments and optimisations. | Custom |
-| **MSC (Mobile Switching Center)** | External | Manages message setup, routing, DFPWM audio transcoding and termination for the cellular network. | Custom |
+| **MTG (Media Termination Gateway)** | External | Manages message setup, routing, DFPWM audio transcoding and termination for the cellular network. | Custom |
 | **Radius Server** | External | Manages subscriber information and authentication. | [FreeRADIUS](https://freeradius.org/) |
 | **PBX (Private Branch Exchange)** | External | Handles media control functions such as messaging, call setup and teardown. | TBC |
 
@@ -57,7 +57,7 @@ flowchart BT
 | Protocol | Description | Transport Layer |
 |----------|-------------|-----------------|
 | **USP/A (User Session Protocol / Profile A)** | A custom protocol used to tunnel SIP packets between the UE and AP. | CC:T's Modem API |
-| **USP/B (User Session Protocol / Profile B)** | A custom protocol used to tunnel SIP packets between the AP and MSC. | JSON over CC:T WebSockets |
+| **USP/B (User Session Protocol / Profile B)** | A custom protocol used to tunnel SIP packets between the AP and MTG. | JSON over CC:T WebSockets |
 | **APC SBI (Service-Based Interface)** | Provides remote configuration and management capabilities for APs. | JSON over HTTP |
-| **Radius** | A standard protocol for authentication, authorization, and accounting (AAA) used between the PBX,MSC and Radius Server. | UDP |
-| **SIP (Session Initiation Protocol)** | A standard protocol for initiating, maintaining, and terminating real-time sessions used between the PBX and MSC. | TCP |
+| **Radius** | A standard protocol for authentication, authorization, and accounting (AAA) used between the PBX,MTG and Radius Server. | UDP |
+| **SIP (Session Initiation Protocol)** | A standard protocol for initiating, maintaining, and terminating real-time sessions used between the PBX and MTG. | TCP |
