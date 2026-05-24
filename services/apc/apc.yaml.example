@@ -1,5 +1,0 @@
-regions:
-  region1:
-    usg:
-      - name: usg1
-        address: ws://1.2.3.4:80
