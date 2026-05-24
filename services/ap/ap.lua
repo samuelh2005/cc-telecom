@@ -1,30 +1,59 @@
 local tArgs = { ... }
 
 local function printUsage()
-    local programName = arg[0] or fs.getName(shell.getRunningProgram())
-    print("Usages:")
-    print(programName .. " <ws_url> [ap_tx_channel] [ap_rx_channel]")
+    local programName = arg[0] or (shell and shell.getRunningProgram and fs.getName(shell.getRunningProgram())) or "program"
+
+    print("Usage:")
+    print(programName .. " <apc_url> <apc_region> [ap_tx_channel] [ap_rx_channel]")
     print("Definitions:")
-    print("ws_url: A valid WebSocket URL, e.g., ws://1.2.3.4:80/ws")
+    print("apc_url: A valid APC URL, e.g. http://1.2.3.4:8080")
+    print("apc_region: The region ID within the APC")
     print("ap_tx_channel: The channel to use for transmitting messages (default: 65123)")
     print("ap_rx_channel: The channel to use for receiving messages (default: 65124)")
     print("Example:")
-    print(programName .. " ws://127.0.0.1:8080/ws 65123 65124")
+    print(programName .. " http://127.0.0.1:8080 1 65123 65124")
 end
 
-if #tArgs == 0 then
+if #tArgs < 2 then
     printUsage()
     return
 end
 
-local WS_URL = tArgs[1]
+local APC_URL = tostring(tArgs[1])
+local APC_REGION = tostring(tArgs[2])
+
+local CHANNEL_AP_TX = 65123
+if tArgs[3] ~= nil then
+    CHANNEL_AP_TX = tonumber(tArgs[3])
+    if not CHANNEL_AP_TX then
+        printError("Invalid ap_tx_channel.")
+        printUsage()
+        return
+    end
+end
+
+local CHANNEL_AP_RX = 65124
+if tArgs[4] ~= nil then
+    CHANNEL_AP_RX = tonumber(tArgs[4])
+    if not CHANNEL_AP_RX then
+        printError("Invalid ap_rx_channel.")
+        printUsage()
+        return
+    end
+end
+
+local CHANNEL_AP_ANNOUNCE = 65125
+
 local RECONNECT_DELAY = 5
 local ANNOUNCE_INTERVAL = 15
 local MESSAGE_TTL = 30
+local MAX_ATTEMPTS_PER_USG = 3
 
-local CHANNEL_AP_TX = tArgs[2] or 65123
-local CHANNEL_AP_RX =  tArgs[3] or 65124
-local CHANNEL_AP_ANNOUNCE = 65125
+local function scheduleReconnect()
+    if not reconnectTimer then
+        reconnectTimer = os.startTimer(RECONNECT_DELAY)
+    end
+end
 
 -- Find modems.
 local tModems = {}
@@ -36,6 +65,51 @@ end
 
 if #tModems == 0 then
     error("No modems found.", 0)
+end
+
+local USG_URLS = {}
+local currentUSGIndex = 1
+local currentUSG = nil
+local usgAttempts = 0
+
+local wsHandle = nil
+local wsConnected = false
+local wsConnecting = false
+local reconnectTimer = nil
+
+local function lookupAPC()
+    local response = http.get(APC_URL .. "/regions/" .. APC_REGION .. "?serviceType=usg")
+    if not response then
+        return false, "Failed to contact APC"
+    end
+
+    local body = response.readAll()
+    response.close()
+
+    local tResponse, err = textutils.unserializeJSON(body)
+    if not tResponse then
+        return false, "Failed to parse JSON response: " .. tostring(err)
+    end
+
+    local tURLs = {}
+    if type(tResponse) == "table" then
+        for _, entry in ipairs(tResponse) do
+            if type(entry) == "table" and type(entry.address) == "string" then
+                table.insert(tURLs, entry.address)
+            end
+        end
+    end
+
+    if #tURLs == 0 then
+        return false, "No USG endpoints found"
+    end
+
+    USG_URLS = tURLs
+    currentUSGIndex = 1
+    currentUSG = USG_URLS[currentUSGIndex]
+    usgAttempts = 0
+
+    return true
 end
 
 local function openChannel(nChannel)
@@ -87,61 +161,14 @@ local function clearTimedMessage(nTimer)
     end
 end
 
-local wsHandle = nil
-local wsConnected = false
-local wsConnecting = false
-local reconnectTimer = nil
-
-local function scheduleReconnect()
-    if not reconnectTimer then
-        reconnectTimer = os.startTimer(RECONNECT_DELAY)
-    end
-end
-
 local function connectWebSocket()
-    if wsConnected or wsConnecting then
+    if wsConnected or wsConnecting or not currentUSG then
         return
     end
+
     wsConnecting = true
-    http.websocketAsync(WS_URL)
-end
-
-local function sendWrapperToWebSocket(tMessage)
-    if not wsConnected or not wsHandle then
-        return false, "WebSocket not connected"
-    end
-
-    local ok, err = pcall(function()
-        wsHandle.send(textutils.serializeJSON(tMessage))
-    end)
-
-    if not ok then
-        return false, err
-    end
-
-    return true
-end
-
-local function handleWebSocketMessage(sMessage, bBinary)
-    if bBinary then
-        return
-    end
-
-    local tMessage, err = textutils.unserializeJSON(sMessage)
-    if not tMessage then
-        printError("Bad WebSocket JSON: " .. tostring(err))
-        return
-    end
-
-    if not isValidPayload(tMessage) then
-        return
-    end
-
-    if not rememberMessage(tMessage.nMessageID) then
-        return
-    end
-
-    transmitToAllModems(CHANNEL_AP_RX, tMessage)
+    print("Connecting to " .. currentUSG .. " (attempt " .. tostring(usgAttempts + 1) .. "/" .. tostring(MAX_ATTEMPTS_PER_USG) .. ")")
+    http.websocketAsync(currentUSG)
 end
 
 local ok, err = pcall(function()
@@ -149,8 +176,16 @@ local ok, err = pcall(function()
     openChannel(CHANNEL_AP_ANNOUNCE)
 
     print("0 packets proxied.")
-    print("Connecting to WebSocket...")
-    connectWebSocket()
+    print("Looking up USGs...")
+
+    local okLookup, lookupErr = lookupAPC()
+    if not okLookup then
+        printError(lookupErr)
+        scheduleReconnect()
+    else
+        print("Connecting to WebSocket...")
+        connectWebSocket()
+    end
 
     local nPacketsForwarded = 0
     local announceTimer = os.startTimer(ANNOUNCE_INTERVAL)
@@ -164,22 +199,29 @@ local ok, err = pcall(function()
 
             if nChannel == CHANNEL_AP_TX and isValidPayload(payload) then
                 if rememberMessage(payload.nMessageID) then
-                    local sent, sendErr = sendWrapperToWebSocket(payload)
-                    if not sent then
-                        printError("WebSocket send failed: " .. tostring(sendErr))
-                        wsConnected = false
-                        wsHandle = nil
-                        scheduleReconnect()
-                    else
-                        nPacketsForwarded = nPacketsForwarded + 1
-                        local _, y = term.getCursorPos()
-                        term.setCursorPos(1, y)
-                        term.clearLine()
-                        if nPacketsForwarded == 1 then
-                            print("1 packet proxied.")
+                    if wsConnected and wsHandle then
+                        local sent, sendErr = pcall(function()
+                            wsHandle.send(textutils.serializeJSON(payload))
+                        end)
+
+                        if not sent then
+                            printError("WebSocket send failed: " .. tostring(sendErr))
+                            wsConnected = false
+                            wsHandle = nil
+                            scheduleReconnect()
                         else
-                            print(nPacketsForwarded .. " packets proxied.")
+                            nPacketsForwarded = nPacketsForwarded + 1
+                            local _, y = term.getCursorPos()
+                            term.setCursorPos(1, y)
+                            term.clearLine()
+                            if nPacketsForwarded == 1 then
+                                print("1 packet proxied.")
+                            else
+                                print(nPacketsForwarded .. " packets proxied.")
+                            end
                         end
+                    else
+                        scheduleReconnect()
                     end
                 end
             end
@@ -188,14 +230,17 @@ local ok, err = pcall(function()
             local sURL = p1
             local handle = p2
 
-            if sURL == WS_URL then
+            if sURL == currentUSG then
                 wsConnecting = false
                 wsConnected = true
                 wsHandle = handle
+                usgAttempts = 0
+
                 if reconnectTimer then
                     os.cancelTimer(reconnectTimer)
                     reconnectTimer = nil
                 end
+
                 print("WebSocket connected.")
             end
 
@@ -203,21 +248,46 @@ local ok, err = pcall(function()
             local sURL = p1
             local sErr = p2
 
-            if sURL == WS_URL then
+            if sURL == currentUSG then
                 wsConnecting = false
                 wsConnected = false
                 wsHandle = nil
+
                 printError("WebSocket connection failed: " .. tostring(sErr))
+
+                usgAttempts = usgAttempts + 1
+
+                if usgAttempts >= MAX_ATTEMPTS_PER_USG then
+                    currentUSGIndex = currentUSGIndex + 1
+                    usgAttempts = 0
+
+                    if currentUSGIndex <= #USG_URLS then
+                        currentUSG = USG_URLS[currentUSGIndex]
+                    else
+                        USG_URLS = {}
+                        currentUSGIndex = 1
+                        currentUSG = nil
+                    end
+                end
+
                 scheduleReconnect()
             end
 
         elseif sEvent == "websocket_closed" then
             local sURL = p1
 
-            if sURL == WS_URL then
+            if sURL == currentUSG then
                 wsConnecting = false
                 wsConnected = false
                 wsHandle = nil
+
+                printError("WebSocket disconnected; refreshing USG list.")
+
+                USG_URLS = {}
+                currentUSGIndex = 1
+                currentUSG = nil
+                usgAttempts = 0
+
                 scheduleReconnect()
             end
 
@@ -226,8 +296,13 @@ local ok, err = pcall(function()
             local sMessage = p2
             local bBinary = p3
 
-            if sURL == WS_URL then
-                handleWebSocketMessage(sMessage, bBinary)
+            if sURL == currentUSG and not bBinary then
+                local tMessage, jsonErr = textutils.unserializeJSON(sMessage)
+                if not tMessage then
+                    printError("Bad WebSocket JSON: " .. tostring(jsonErr))
+                elseif isValidPayload(tMessage) and rememberMessage(tMessage.nMessageID) then
+                    transmitToAllModems(CHANNEL_AP_RX, tMessage)
+                end
             end
 
         elseif sEvent == "timer" then
@@ -238,7 +313,18 @@ local ok, err = pcall(function()
 
             elseif reconnectTimer and nTimer == reconnectTimer then
                 reconnectTimer = nil
-                connectWebSocket()
+
+                if not currentUSG then
+                    local okRefresh, refreshErr = lookupAPC()
+                    if not okRefresh then
+                        printError(refreshErr)
+                        scheduleReconnect()
+                    else
+                        connectWebSocket()
+                    end
+                else
+                    connectWebSocket()
+                end
 
             elseif nTimer == announceTimer then
                 local announcePacket = {
@@ -258,7 +344,9 @@ local ok, err = pcall(function()
 end)
 
 if wsHandle then
-    pcall(function() wsHandle.close() end)
+    pcall(function()
+        wsHandle.close()
+    end)
 end
 
 closeChannel(CHANNEL_AP_TX)
