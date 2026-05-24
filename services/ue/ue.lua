@@ -2,10 +2,10 @@ local lib_cellular = require("lib_cellular")
 
 local function ue_loop()
     print("Sending message...")
-    lib_cellular.send("Hello, World!")
+    lib_cellular.send("Hello, World!", "test")
 
     while true do
-        local nMessageID, tMessage, nReplyTo = lib_cellular.receive()
+        local nMessageID, tMessage, sDataService, nReplyTo = lib_cellular.receive()
         if tMessage then
             if not nReplyTo then
                 print("Received message (ID: " .. nMessageID .. "):")

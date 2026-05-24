@@ -51,7 +51,7 @@ local function ue_loop()
             then
                 local sPacketType = payload.sPacketType
 
-                if (nChannel == nChannelApRX) and type(sPacketType) == "string" and sPacketType == "data" then
+                if (nChannel == nChannelApRX) and type(sPacketType) == "string" and sPacketType == "usp_b" then
                     local nMessageID = payload.nMessageID
                     local tMessage = payload.tMessage
                     local nReplyTo = payload.nReplyTo
@@ -59,11 +59,13 @@ local function ue_loop()
 
                     if type(nMessageID) == "number"
                         and type(nUE) == "number"
-                        and type(tMessage) ~= "nil"
+                        and type(tMessage) == "table"
                         and (nReplyTo == nil or type(nReplyTo) == "number")
                         and nUE == os.getComputerID()
+                        and type(tMessage.sDataService) == "string"
+                        and type(tMessage.tPayload) == "table"
                     then
-                        os.queueEvent("cellular_message", payload)
+                        os.queueEvent("usp_b_message", payload)
                     end
                 elseif (nChannel == CHANNEL_AP_ANNOUNCE) and type(sPacketType) == "string" and sPacketType == "announce" then
                     local nApID = payload.nApID
@@ -129,7 +131,12 @@ function lib_cellular.init(user_func)
     end
 end
 
-function lib_cellular.send(message)
+function lib_cellular.send(message, dataService)
+    local usp_b_wrapper = {
+        sDataService = dataService,
+        tPayload = message,
+    }
+
     if nCurrentAP == nil then
         local timer_id = os.startTimer(MSG_SEND_TIMEOUT)
         while true do
@@ -145,7 +152,7 @@ function lib_cellular.send(message)
     end
 
     local msg_id = math.random(1, 2147483647)
-    transmit(msg_id, message, "data")
+    transmit(msg_id, usp_b_wrapper, "usp_b")
     return msg_id
 end
 
@@ -158,12 +165,15 @@ function lib_cellular.receive(timeout)
     while true do
         local sEvent, p1, p2, p3, p4 = os.pullEvent()
 
-        if sEvent == "cellular_message" then
+        if sEvent == "usp_b_message" then
             local nMessageID = p1.nMessageID
             local tMessage = p1.tMessage
             local nReplyTo = p1.nReplyTo
 
-            return nMessageID, tMessage, nReplyTo
+            local tPayload = tMessage.tPayload
+            local sDataService = tMessage.sDataService
+
+            return nMessageID, tPayload, sDataService, nReplyTo
         elseif sEvent == "timer" and p1 == timer_id then
             return nil
         end
