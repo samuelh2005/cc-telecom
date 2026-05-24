@@ -44,10 +44,20 @@ end
 
 local CHANNEL_AP_ANNOUNCE = 65125
 
-local RECONNECT_DELAY = 5
+local RECONNECT_DELAY = 3
 local ANNOUNCE_INTERVAL = 15
 local MESSAGE_TTL = 30
 local MAX_ATTEMPTS_PER_USG = 3
+
+local reconnectTimer = nil
+local wsHandle = nil
+local wsConnected = false
+local wsConnecting = false
+
+local USG_URLS = {}
+local currentUSGIndex = 1
+local currentUSG = nil
+local usgAttempts = 0
 
 local function scheduleReconnect()
     if not reconnectTimer then
@@ -66,16 +76,6 @@ end
 if #tModems == 0 then
     error("No modems found.", 0)
 end
-
-local USG_URLS = {}
-local currentUSGIndex = 1
-local currentUSG = nil
-local usgAttempts = 0
-
-local wsHandle = nil
-local wsConnected = false
-local wsConnecting = false
-local reconnectTimer = nil
 
 local function lookupAPC()
     local response = http.get(APC_URL .. "/regions/" .. APC_REGION .. "?serviceType=usg")
@@ -264,9 +264,11 @@ local ok, err = pcall(function()
                     if currentUSGIndex <= #USG_URLS then
                         currentUSG = USG_URLS[currentUSGIndex]
                     else
-                        USG_URLS = {}
-                        currentUSGIndex = 1
-                        currentUSG = nil
+                        local okRefresh, refreshErr = lookupAPC()
+                        if not okRefresh then
+                            printError(refreshErr)
+                            currentUSG = nil
+                        end
                     end
                 end
 
@@ -283,10 +285,11 @@ local ok, err = pcall(function()
 
                 printError("WebSocket disconnected; refreshing USG list.")
 
-                USG_URLS = {}
-                currentUSGIndex = 1
-                currentUSG = nil
-                usgAttempts = 0
+                local okRefresh, refreshErr = lookupAPC()
+                if not okRefresh then
+                    printError(refreshErr)
+                    currentUSG = nil
+                end
 
                 scheduleReconnect()
             end
