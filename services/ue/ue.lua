@@ -2,7 +2,7 @@ local lib_cellular = require("lib_cellular")
 
 local function ue_loop()
     print("Sending message...")
-    lib_cellular.send("Hello, World!", "test")
+    lib_cellular.send({message = "Hello, World!"}, "test")
 
     while true do
         local nMessageID, tMessage, sDataService, nReplyTo = lib_cellular.receive()

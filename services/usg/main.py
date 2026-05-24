@@ -15,11 +15,35 @@ async def handler(websocket):
 
             t = json.loads(message)
 
+            if not t["sPacketType"] == "usp_b":
+                print("Invalid packet type, ignoring")
+                continue
+
+            tMessage = t.get("tMessage", {})
+            if not isinstance(tMessage, dict):
+                print("Invalid tMessage format, ignoring")
+                continue
+
+            tPayload = tMessage.get("tPayload", {})
+
+            if not isinstance(tPayload, dict):
+                print("Invalid tPayload format, ignoring")
+                continue
+
+            sDataService = tMessage.get("sDataService", None)
+
+            if not isinstance(sDataService, str):
+                print("Invalid sDataService format, ignoring")
+                continue
+
             reply = {
                 "nMessageID": new_message_id(),
                 "nUE": t["nUE"],
                 "nReplyTo": t["nMessageID"],
-                "tMessage": f"Server got: {t['tMessage']}",
+                "tMessage": {
+                    "sDataService": sDataService,
+                    "tPayload": tPayload
+                },
                 "sPacketType": t["sPacketType"]
             }
 

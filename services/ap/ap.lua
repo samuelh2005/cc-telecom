@@ -129,7 +129,7 @@ local function isValidPayload(tMessage)
         and type(tMessage.sPacketType) == "string"
         and type(tMessage.nMessageID) == "number"
         and type(tMessage.nUE) == "number"
-        and tMessage.tMessage ~= nil
+        and type(tMessage.tMessage) == "table"
 end
 
 local function transmitToAllModems(channel, tMessage)

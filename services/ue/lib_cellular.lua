@@ -51,7 +51,7 @@ local function ue_loop()
             then
                 local sPacketType = payload.sPacketType
 
-                if (nChannel == nChannelApRX) and type(sPacketType) == "string" and sPacketType == "usp_b" then
+                if (nChannel == nChannelApRX) and sPacketType == "usp_b" then
                     local nMessageID = payload.nMessageID
                     local tMessage = payload.tMessage
                     local nReplyTo = payload.nReplyTo
@@ -67,7 +67,7 @@ local function ue_loop()
                     then
                         os.queueEvent("usp_b_message", payload)
                     end
-                elseif (nChannel == CHANNEL_AP_ANNOUNCE) and type(sPacketType) == "string" and sPacketType == "announce" then
+                elseif (nChannel == CHANNEL_AP_ANNOUNCE) and sPacketType == "announce" then
                     local nApID = payload.nApID
                     local nTXChannel = payload.nTXChannel
                     local nRXChannel = payload.nRXChannel
@@ -132,6 +132,14 @@ function lib_cellular.init(user_func)
 end
 
 function lib_cellular.send(message, dataService)
+    if type(message) ~= "table" then
+        error("Message must be a table.", 2)
+    end
+
+    if type(dataService) ~= "string" then
+        error("Data service must be a string.", 2)
+    end
+
     local usp_b_wrapper = {
         sDataService = dataService,
         tPayload = message,
