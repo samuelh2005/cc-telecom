@@ -17,47 +17,56 @@ There are objectives which are outside the scope of this architecture, such as:
 ## 2: Network Topology
 
 ```mermaid
-flowchart BT
+flowchart LR
     UE((UE))
+    EA(("External\nApplications"))
 
     subgraph "Radio Access Network"
         AP[AP]
         APC[APC]
 
-        AP --> |"APC SBI"| APC
+        AP --> |"APC API"| APC
     end
 
     subgraph "Core Network"
-        RS["Radius Server"]
-        SIP["SIP Proxy"]
+        HSS["HSS"]
+        SMSC[SMSC]
         USG[USG]
-        
-        RS --- |"Radius"| USG
-        RS --- |"Radius"| SIP
-        SIP --- |"SIP"| USG
+        SMSG[SMSG]
+
+        USG --> |"HSS API"| HSS
+        SMSC --> |"HSS API"| HSS
+        SMSG --> |"SMSC API"| SMSC
+        USG <===> |"ADP"| SMSC
     end
     
-    AP === |"USP/B"| USG
-    UE === |"USP/A"| AP
+    AP <===> |"USP/B"| USG
+    UE <===> |"USP/A"| AP
+    EA <===> |"ADP"| USG
+    EA --> |"SMPP"| SMSG
 ```
 
 ## 3. Network Components
 
 | Component | Location | Description | Implementation |
 |-----------|----------|-------------|----------------|
-| **UE (User Equipment)** | In-Game | The in-game device that connects to the cellular network. It can be a computer, pocket computer, or a turtle. | Custom [../services/ue/](../services/ue/) |
-| **AP (Access Point)** | In-Game | The in-game component that provides wireless connectivity to the UE. It acts as a bridge between the UE and the core network. | Custom [../services/ap/](../services/ap/) |
-| **APC (Access Point Controller)** | External | Facilitates remote configuration and management of APs, allowing for dynamic network adjustments and optimisations. | Custom |
-| **USG (User Session Gateway)** | External | Terminates user sessions and routes user traffic. | Custom |
-| **Radius Server** | External | Manages subscriber information and authentication. | [FreeRADIUS](https://freeradius.org/) |
-| **SIP Proxy** | External | Handles media control functions such as messaging, call setup and teardown. | TBC |
+| **UE (User Equipment)** | In-Game+External | The in-game device that connects to the cellular network. It can be a computer, pocket computer, or a turtle. | Custom [../services/ue/](../services/ue/) |
+| **AP (Access Point)** | In-Game+Internal | The in-game component that provides wireless connectivity to the UE. It acts as a bridge between the UE and the core network. | Custom [../services/ap/](../services/ap/) |
+| **APC (Access Point Controller)** | Outside-Game+Internal | Facilitates remote configuration and management of APs, allowing for dynamic network adjustments and optimisations. | Custom |
+| **USG (User Session Gateway)** | Outside-Game+Internal | Terminates user sessions and routes user traffic. Also maintains the application dictionary. | Custom |
+| **HSS (Home Subscriber Server)** | Outside-Game+Internal | Stores subscriber information and authentication data. | Custom |
+| **SMSC (Short Message Service Center)** | Outside-Game+Internal | Handles the routing and delivery of SMS messages. | Custom |
+| **SMSG (Short Message Service Gateway)** | Outside-Game+Internal | Provides an interface for external entities to send and receive SMS messages. | Custom |
+| **External Applications** | Outside-Game | Third-party applications that interact with the cellular network, such as web services or SMS applications. | N/A |
 
 ## 4. Communication Protocols
 
 | Protocol | Description | Transport Layer |
 |----------|-------------|-----------------|
-| **USP/A (User Session Protocol / Profile A)** | A custom protocol used to tunnel SIP packets between the UE and AP. | CC:T's Modem API |
-| **USP/B (User Session Protocol / Profile B)** | A custom protocol used to tunnel SIP packets between the AP and USG. | JSON over CC:T WebSockets |
-| **APC SBI (Service-Based Interface)** | Provides remote configuration and management capabilities for APs. | JSON over HTTP |
-| **Radius** | A standard protocol for authentication, authorization, and accounting (AAA) used between the SIP Proxy, USG and Radius Server. | UDP |
-| **SIP (Session Initiation Protocol)** | A standard protocol for initiating, maintaining, and terminating real-time sessions used between the SIP Proxy and USG. | TCP |
+| **USP/A (User Session Protocol / Profile A)** | Performs radio link establishment and tunnels application packets. | CC:T's Modem API |
+| **USP/B (User Session Protocol / Profile B)** | Facilitates UE authentication and tunneling of application packets into the core network. | JSON over CC:T WebSockets |
+| **ADP (Application Data Protocol)** | Routes application packets to serving application servers. | JSON over HTTP |
+| **APC API** | Provides remote configuration and management capabilities for APs. | JSON over HTTP |
+| **HSS API** | Allows the USG and SMSC to query subscriber information and authentication data from the HSS. | JSON over HTTP |
+| **SMSC API** | Bridges the gap between external apps and SMSC, enabling the sending and receiving of SMS messages. | JSON over HTTP |
+| **SMPP (Short Message Peer-to-Peer)** | A protocol used for exchanging SMS messages between the SMSG and external apps. | TCP/IP |
