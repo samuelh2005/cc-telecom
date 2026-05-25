@@ -51,7 +51,7 @@ local function ue_loop()
             then
                 local sPacketType = payload.sPacketType
 
-                if (nChannel == nChannelApRX) and sPacketType == "usp_b" then
+                if (nChannel == nChannelApRX) and sPacketType == "adp" then
                     local nMessageID = payload.nMessageID
                     local tMessage = payload.tMessage
                     local nReplyTo = payload.nReplyTo
@@ -160,7 +160,7 @@ function lib_cellular.send(message, dataService)
     end
 
     local msg_id = math.random(1, 2147483647)
-    transmit(msg_id, usp_b_wrapper, "usp_b")
+    transmit(msg_id, usp_b_wrapper, "adp")
     return msg_id
 end
 

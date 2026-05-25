@@ -79,7 +79,7 @@ async fn handle_socket(mut socket: WebSocket) {
             }
         };
 
-        if packet.s_packet_type != "usp_b" {
+        if packet.s_packet_type != "adp" {
             println!("Invalid packet type, ignoring");
             continue;
         }
