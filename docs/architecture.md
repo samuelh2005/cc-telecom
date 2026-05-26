@@ -20,6 +20,7 @@ There are objectives which are outside the scope of this architecture, such as:
 flowchart LR
     UE((UE))
     EA(("External\nApplications"))
+    ESMS(("External\nSMS\nService"))
 
     subgraph "Radio Access Network"
         AP[AP]
@@ -30,20 +31,18 @@ flowchart LR
 
     subgraph "Core Network"
         HSS["HSS"]
-        SMSC[SMSC]
         USG[USG]
         SMSG[SMSG]
 
         USG --> |"HSS API"| HSS
-        SMSC --> |"HSS API"| HSS
-        SMSG --> |"SMSC API"| SMSC
-        USG <===> |"ADP"| SMSC
+        SMSG --> |"HSS API"| HSS
+        USG <===> |"ADP"| SMSG
     end
     
     AP <===> |"USP/B"| USG
     UE <===> |"USP/A"| AP
     EA <===> |"ADP"| USG
-    EA --> |"SMPP"| SMSG
+    ESMS <===> |"SMPP"| SMSG
 ```
 
 ## 3. Network Components
@@ -55,9 +54,9 @@ flowchart LR
 | **APC (Access Point Controller)** | Outside-Game+Internal | Facilitates remote configuration and management of APs, allowing for dynamic network adjustments and optimisations. | Custom |
 | **USG (User Session Gateway)** | Outside-Game+Internal | Terminates user sessions and routes user traffic. Also maintains the application dictionary. | Custom |
 | **HSS (Home Subscriber Server)** | Outside-Game+Internal | Stores subscriber information and authentication data. | Custom |
-| **SMSC (Short Message Service Center)** | Outside-Game+Internal | Handles the routing and delivery of SMS messages. | Custom |
-| **SMSG (Short Message Service Gateway)** | Outside-Game+Internal | Provides an interface for external entities to send and receive SMS messages. | Custom |
+| **SMSG (Short Message Service Gateway)** | Outside-Game+Internal | Offloads all SMS processing to an upstream SMS service. | Custom |
 | **External Applications** | Outside-Game | Third-party applications that interact with the cellular network, such as web services or SMS applications. | N/A |
+| **External SMS Service** | Outside-Game | An external service that is responsible for the delivery of SMS messages. | N/A |
 
 ## 4. Communication Protocols
 
