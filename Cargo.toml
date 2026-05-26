@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
 members = [
-    "services/apc",
+    "services/apc", "services/smsg",
     "services/usg"
 ]

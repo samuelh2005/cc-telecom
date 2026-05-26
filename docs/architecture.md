@@ -20,7 +20,7 @@ There are objectives which are outside the scope of this architecture, such as:
 flowchart LR
     UE((UE))
     EA(("External\nApplications"))
-    ESMS(("External\nSMS\nService"))
+    ESMS(("External\nSMS Service"))
 
     subgraph "Radio Access Network"
         AP[AP]
