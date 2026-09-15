@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 
-The CC Internetworking Tunnel is a service designed for in-game CC UEs to reach the core network. It's a multi-stage relay combining rednet, WebSockets, and a custom protocol to provide a reliable and secure connection between the UE and the core network.
+The CC Internetworking Tunnel is a service designed for in-game CC UEs to reach the core network. It's a multi-stage relay combining Rednet, WebSockets, and a custom protocol to provide a reliable and secure connection between the UE and the core network.
 
 ## 2. Network Topology
 
